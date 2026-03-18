@@ -27,6 +27,9 @@ const dc = new DashClaw({
   agentId: config.agentId,
 });
 
+const DASHCLAW_ACTION_TYPE = 'api';
+const TREASURY_OPERATION = 'uniswap_swap';
+
 // Stats tracking
 const stats = {
   executed: 0, blocked: 0, approvalRequired: 0, failed: 0,
@@ -80,7 +83,7 @@ async function runCycle(cycle) {
 
     // 4. Check lessons
     try {
-      const { lessons } = await dc.getLessons({ actionType: 'uniswap_swap' });
+      const { lessons } = await dc.getLessons({ actionType: DASHCLAW_ACTION_TYPE });
       if (lessons.length > 0) {
         console.log(`[Lessons] ${lessons[0].guidance} (confidence: ${lessons[0].confidence})`);
       }
@@ -95,9 +98,14 @@ async function runCycle(cycle) {
 
     // 6. DashClaw guard check
     const guardResult = await dc.guard({
-      actionType: 'uniswap_swap',
+      actionType: DASHCLAW_ACTION_TYPE,
       riskScore: analysis.riskScore,
-      content: JSON.stringify(analysis),
+      content: JSON.stringify({
+        ...analysis,
+        operation: TREASURY_OPERATION,
+        chain: 'sepolia',
+        approvalContext: 'TreasuryClaw governed Uniswap rebalance',
+      }),
     });
 
     if (guardResult.learning) {
@@ -116,10 +124,10 @@ async function runCycle(cycle) {
 
     // 7. Create action
     action = await dc.createAction({
-      actionType: 'uniswap_swap',
-      declaredGoal: `${analysis.direction}: $${analysis.amountUSD} at ETH=$${priceData.price.toFixed(2)}`,
+      actionType: DASHCLAW_ACTION_TYPE,
+      declaredGoal: `${analysis.direction}: $${analysis.amountUSD} at ETH=$${priceData.price.toFixed(2)}. Operation=${TREASURY_OPERATION}. Chain=sepolia.`,
       riskScore: analysis.riskScore,
-      metadata: { ...analysis, ethPrice: priceData.price, source: priceData.source },
+      metadata: { ...analysis, operation: TREASURY_OPERATION, chain: 'sepolia', ethPrice: priceData.price, source: priceData.source },
     });
 
     // 8. Handle approval

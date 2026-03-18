@@ -211,6 +211,10 @@ TreasuryClaw is an autonomous spending agent. It reads market data, decides when
 
 Trust is verifiable, not claimed. TreasuryClaw registers its identity on Base Mainnet via ERC-8004, writes decision receipt hashes to Sepolia calldata (keccak256 of the full decision record), and logs every action through DashClaw's audit trail. Any observer can verify what the agent decided, why it decided it, what the guard's verdict was, and what the outcome was — on-chain and through the replay URL.
 
+### Why the policy story matters
+
+A real part of the build was conversational governance design: Wes asked the agent to define the exact policies that should protect it from getting tricked into bad wallet behavior, then those rules were translated into native DashClaw policies and applied live. That is now part of the project story, not side commentary. See `docs/policy-origin-story.md`.
+
 ---
 
 ## Partner Integrations

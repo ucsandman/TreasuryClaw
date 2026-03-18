@@ -31,6 +31,9 @@ const dc = new DashClaw({
   agentId: config.agentId,
 });
 
+const DASHCLAW_ACTION_TYPE = 'api';
+const TREASURY_OPERATION = 'uniswap_swap';
+
 // ---------------------------------------------------------------------------
 // Module-level state for handoffs
 // ---------------------------------------------------------------------------
@@ -71,7 +74,7 @@ async function agentDecide(balance) {
   // Check DashClaw for lessons from past swap outcomes
   let lessonContext = '';
   try {
-    const { lessons } = await dc.getLessons({ actionType: 'uniswap_swap' });
+    const { lessons } = await dc.getLessons({ actionType: DASHCLAW_ACTION_TYPE });
     if (lessons.length > 0) {
       const topLesson = lessons[0];
       console.log(`[Decide] DashClaw lesson (confidence ${topLesson.confidence}): ${topLesson.guidance}`);
@@ -95,7 +98,8 @@ async function agentDecide(balance) {
 
   const maxSwapUSD = balance.totalUSD * (parseInt(process.env.MAX_SWAP_PERCENT || '10', 10) / 100);
   const proposal = {
-    actionType: 'uniswap_swap',
+    actionType: DASHCLAW_ACTION_TYPE,
+    operation: TREASURY_OPERATION,
     goal: `Rebalance treasury: swap USDC to WETH to increase ETH exposure (max $${maxSwapUSD})`,
     amountUSD: Math.min(500, maxSwapUSD),
     tokenIn: 'USDC',
@@ -185,7 +189,12 @@ async function runTreasuryLoop() {
     const guardResult = await dc.guard({
       actionType: proposal.actionType,
       riskScore: proposal.riskScore,
-      content: JSON.stringify(proposal),
+      content: JSON.stringify({
+        ...proposal,
+        operation: proposal.operation || TREASURY_OPERATION,
+        chain: 'sepolia',
+        approvalContext: 'TreasuryClaw governed Uniswap rebalance',
+      }),
     });
 
     if (guardResult.decision === 'block') {
@@ -214,9 +223,11 @@ async function runTreasuryLoop() {
     // Step 4: Create verifiable action record
     action = await dc.createAction({
       actionType: proposal.actionType,
-      declaredGoal: proposal.goal,
+      declaredGoal: `${proposal.goal}. Operation=${proposal.operation || TREASURY_OPERATION}. Chain=sepolia. Tokens=${proposal.tokenIn}->${proposal.tokenOut}. AmountUSD=${proposal.amountUSD}`,
       riskScore: proposal.riskScore,
       metadata: {
+        operation: proposal.operation || TREASURY_OPERATION,
+        chain: 'sepolia',
         tokenIn: proposal.tokenIn,
         tokenOut: proposal.tokenOut,
         amountUSD: proposal.amountUSD,

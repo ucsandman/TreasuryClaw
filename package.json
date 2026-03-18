@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/treasury-agent.js",
     "dev": "node --watch src/treasury-agent.js",
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.js",
+    "test:policies": "node --env-file=.env scripts/policy-smoke-test.mjs",
     "lint": "echo \"TODO: configure linter\"",
     "build": "echo \"No build step — pure Node.js ESM\""
   },
