@@ -1,0 +1,34 @@
+{
+  "agentId": "treasury-claw-fleet",
+  "policies": [
+    {
+      "name": "max-swap-amount",
+      "actionType": "uniswap_swap",
+      "maxAmountUSD": 1500,
+      "riskThreshold": 30,
+      "requireApproval": true,
+      "description": "Never swap more than $1,500 without human approval"
+    },
+    {
+      "name": "treasury-rebalance-only",
+      "actionType": "uniswap_swap",
+      "allowedTokens": ["USDC", "WETH", "USDT", "DAI"],
+      "maxSlippage": 0.5,
+      "requireApproval": false,
+      "riskThreshold": 20,
+      "description": "Auto-approve rebalances between approved stable/yield pairs under risk threshold"
+    },
+    {
+      "name": "no-high-risk-actions",
+      "actionType": "*",
+      "forbiddenActions": ["transfer_to_eoa", "large_withdrawal", "approve_unlimited"],
+      "riskThreshold": 60,
+      "requireApproval": true,
+      "description": "Block anything that could drain the treasury — require approval for all high-risk ops"
+    }
+  ],
+  "receiptSettings": {
+    "storeOnchain": true,
+    "erc8004Compatible": true
+  }
+}

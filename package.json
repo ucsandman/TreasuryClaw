@@ -1,0 +1,31 @@
+{
+  "name": "treasury-claw",
+  "version": "1.0.0",
+  "description": "3 OpenClaw agents + DashClaw governance + Uniswap V3 — safe, autonomous treasury management",
+  "type": "module",
+  "main": "src/treasury-agent.js",
+  "scripts": {
+    "start": "node src/treasury-agent.js",
+    "dev": "node --watch src/treasury-agent.js",
+    "test": "node --test tests/",
+    "lint": "echo \"TODO: configure linter\"",
+    "build": "echo \"No build step — pure Node.js ESM\""
+  },
+  "keywords": [
+    "openclaw",
+    "dashclaw",
+    "uniswap",
+    "treasury",
+    "ai-agents",
+    "governance"
+  ],
+  "author": "Wes Sander (@wes_sander)",
+  "license": "MIT",
+  "dependencies": {
+    "dashclaw": "^2.5.0",
+    "viem": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
