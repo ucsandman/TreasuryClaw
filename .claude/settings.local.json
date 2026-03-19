@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(swap-integration)",
+      "Bash(git init:*)"
+    ]
+  }
+}

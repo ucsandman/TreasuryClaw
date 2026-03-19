@@ -9,7 +9,10 @@ During the March 18, 2026 build session, Wes asked a direct question:
 - How can I add a policy to DashClaw to protect you from getting your ETH stolen or tricked?
 - Or make it a requirement that I approve all transactions?
 
-That led to a concrete policy design exercise inside the live build:
+That led to a concrete policy design exercise inside the live build. With the current repo state, that policy work now matters across two spend rails instead of one:
+
+- a funded AgentCash USDC rail for paid API actions
+- a rewired ETH wallet path for Base and Sepolia execution
 
 1. Identify the exact wallet-risk classes
    - swaps and transfers
@@ -40,7 +43,7 @@ The result is more than a demo safeguard. It shows a practical trust pattern for
 
 - a human can ask the agent to define the rules that should constrain it
 - those rules become machine-enforced policies
-- the system keeps an audit trail of approval, blocking, and execution behavior
+- the system keeps an audit trail of approval, blocking, and execution behavior across different payment rails
 
 That creates a useful inversion: the agent is not asking for more autonomy. It is helping define the boundaries of its own autonomy.
 
@@ -59,3 +62,13 @@ That creates a useful inversion: the agent is not asking for more autonomy. It i
 This conversation became part of the project story because it demonstrates the core thesis behind TreasuryClaw:
 
 **Agents that pay need agents that trust, and trust requires explicit, enforceable limits.**
+
+## Current demo implication
+
+Even before the ETH wallet has Base and Sepolia gas for a fully live chain demo, this policy story remains essential, but it is now strongest when framed as governed spending:
+
+- the agent can define the kinds of spend behavior that should be constrained
+- DashClaw can enforce those constraints on both paid API spend and onchain execution attempts
+- the human can inspect and approve the resulting autonomy boundary
+
+That makes the governed-agent-spend-first demo legitimate even when the final Base and Sepolia execution steps are still waiting on funding.

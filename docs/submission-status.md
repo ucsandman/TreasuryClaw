@@ -1,53 +1,99 @@
 # TreasuryClaw Submission Status
 
-## What is done
+Snapshot date: 2026-03-18
 
-- DashClaw governance layer is live and working
-- Wallet-affecting actions are typed as `api` so policy enforcement catches them consistently
-- Policy stack is live in DashClaw:
+## Credible claim set
+
+TreasuryClaw is currently strongest as a governed-agent-spend-first demo, not as a pure swap demo and not as a fully proven end-to-end live onchain treasury run.
+
+That means the safe, honest submission claim is:
+
+**TreasuryClaw can read live market data, compute treasury actions, route those actions through DashClaw approval policies, and apply that same governance model across two spend rails: a funded AgentCash API-spend rail today, and Base + Sepolia execution rails once the wallet has the right gas and test assets.**
+
+## Verified today
+
+### Verified paid-spend reality
+
+- An AgentCash USDC wallet exists for the operator and has previously purchased API credits
+- This creates a real-money spend path that does not depend on Sepolia gas
+
+### Verified live against DashClaw
+
+- `api` actions can require approval
+- `config` actions can be blocked
+- DashClaw action creation can land in `pending_approval`
+- The scoped wallet policy stack is in place:
   - require approval for wallet/onchain actions
   - block wallet/config mutation
   - high-risk escalation
   - rate limiting
   - semantic protection for key exposure, unclear destinations, and drain patterns
-- Policy smoke test path is added locally
-- README and supporting docs now include the policy-origin story from the March 18 build session
 
-## What was verified live
+### Verified locally
 
-- `api` actions route into approval flow
-- `config` actions are blocked
-- DashClaw action creation can land in `pending_approval`
+- Local unit tests pass for:
+  - Uniswap Trading API helper behavior
+  - portfolio rebalance / risk logic
+  - honest framing logic for the current two-rail reality
+- The Sepolia/Base execution code paths exist and are explicit in source
+- Policy smoke-test tooling is present for repeatable verification when DashClaw is reachable
 
-## Current blocker
+## Not yet proven live from the current repo path
 
-The recovered TreasuryClaw wallet currently has no Sepolia ETH and no Base ETH available for the live demo path. That blocks:
-
+- A repo-run paid API action routed through DashClaw and backed by the funded AgentCash rail
 - Sepolia swap execution
-- onchain decision receipt writes that require gas
-- Base identity registration if it requires funded execution from this wallet
+- Sepolia decision receipt writes
+- Base ERC-8004 writes
 
-## Resourceful workarounds attempted
+No claim in the README or final submission should imply those happened unless there are matching receipts or explorer links.
 
-- Switched to a public Sepolia RPC fallback (`https://ethereum-sepolia-rpc.publicnode.com`) so the project no longer depends on a private RPC just to read chain state
-- Checked multiple candidate local wallets for Sepolia balance
-- Tried a no-signup faucet path via Bitbond Token Tool
+## Current blocker map
 
-## Remaining external gate
+The current ETH wallet path still has no proven usable gas on:
 
-The faucet path still requires connecting a wallet in-browser. Without that interactive wallet connection or another funded test wallet/private key, the fully live onchain portion cannot be completed autonomously from this environment.
+- Base for ERC-8004 writes
+- Sepolia for receipt writes or swaps
 
-## Best next unlock
+The funded AgentCash rail changes the story:
 
-Any one of these would unblock the final end-to-end demo:
+- It gives the project a real paid rail right now.
+- It does not by itself prove the Base or Sepolia onchain path.
 
-1. Fund the TreasuryClaw wallet with Sepolia ETH
-2. Provide a funded Sepolia private key for demo use
-3. Fund the wallet on Base if Base-side live writes are required
-4. Manually connect the wallet in the faucet flow and request test ETH
+Having ETH available elsewhere helps only partially:
 
-## Submission framing
+- It can be bridged to Base.
+- It cannot become Sepolia ETH.
 
-Even with the current funding blocker, the most differentiated part of TreasuryClaw is already real:
+## Minimum viable demo right now
 
-**An agent that can propose wallet actions, get policy-checked by DashClaw, require human approval, and produce an auditable trust story around constrained autonomy.**
+The minimum credible judge demo, without fabricating onchain success, is:
+
+1. Show the policy origin story and why the wallet rules exist.
+2. Run `npm run frame:repo`.
+3. Run `npm run verify:local`.
+4. Run `npm run test:policies` if DashClaw is reachable.
+5. Walk through the live code path in `src/demo.js` and explain exactly where funding gates begin.
+
+This demonstrates the most differentiated part of the project:
+
+**A treasury agent whose spending autonomy is constrained by explicit, reviewable, machine-enforced policies across both paid API and onchain execution surfaces.**
+
+## Best next funding path
+
+To unlock the cheapest next proof points:
+
+1. Use the funded AgentCash wallet for one governed paid API call and save the receipt or output as evidence.
+2. Bridge a small amount of ETH to Base for the current wallet path.
+3. Obtain Sepolia ETH through a faucet or funded demo key.
+4. Obtain Sepolia USDC if you want a real swap, not just a receipt write.
+5. Re-run the demo with `--cycles 1 --auto-approve` first and only scale up after explorer verification.
+
+## What remains for a real live demo
+
+- One repo-visible governed paid API execution path if you want the funded AgentCash rail demonstrated from code
+- Base-funded wallet confirmation
+- Sepolia-funded wallet confirmation
+- One successful Sepolia receipt write
+- One successful Sepolia swap
+- Explorer links captured in the repo or submission notes
+- Short video showing policy gate -> approval -> execution -> explorer proof
