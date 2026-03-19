@@ -1,16 +1,16 @@
 // src/onchain-receipts.js
 import { createPublicClient, createWalletClient, http, keccak256, toBytes } from 'viem';
-import { sepolia } from 'viem/chains';
+import { mainnet as sepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 
 /**
- * Write a governance decision receipt hash to Sepolia.
+ * Write a governance decision receipt hash to Ethereum Mainnet.
  * Uses a 0-value self-transaction with the receipt hash as calldata.
  * Costs only gas (~21,000 + calldata gas). Verifiable on Etherscan.
  */
 export async function writeDecisionReceipt(decision) {
-  const account = privateKeyToAccount(process.env.SEPOLIA_PRIVATE_KEY);
-  const transport = http(process.env.SEPOLIA_RPC_URL);
+  const account = privateKeyToAccount((process.env.PRIVATE_KEY || (process.env.PRIVATE_KEY || process.env.SEPOLIA_PRIVATE_KEY)));
+  const transport = http(((process.env.SEPOLIA_RPC_URL || 'https://eth.llamarpc.com') || 'https://eth.llamarpc.com'));
   const publicClient = createPublicClient({ chain: sepolia, transport });
   const walletClient = createWalletClient({ account, chain: sepolia, transport });
 
@@ -39,7 +39,7 @@ export async function writeDecisionReceipt(decision) {
   return {
     txHash,
     receiptHash,
-    explorerUrl: `https://sepolia.etherscan.io/tx/${txHash}`,
+    explorerUrl: `https://etherscan.io/tx/${txHash}`,
     receipt,
   };
 }

@@ -1,10 +1,10 @@
 /**
- * ERC-8004 Agent Identity Registration on Base Mainnet.
+ * ERC-8004 Agent Identity Registration on Ethereum Mainnet.
  *
  * Registers TreasuryClaw as a Trustless Agent on the ERC-8004 Identity Registry,
  * checks registration status, and submits on-chain reputation feedback.
  *
- * Contracts (Base Mainnet, chain ID 8453):
+ * Contracts (Ethereum Mainnet, chain ID 8453):
  *   Identity Registry:   0x8004A169FB4a3325136EB29fA0ceB6D2e539a432
  *   Reputation Registry:  0x8004BAa17C55a88189AE136b182e5fdA19dE9b63
  */
@@ -16,10 +16,10 @@ import {
   getAddress,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { base } from 'viem/chains';
+import { mainnet as base } from 'viem/chains';
 
 // ---------------------------------------------------------------------------
-// Contract addresses (Base Mainnet)
+// Contract addresses (Ethereum Mainnet)
 // ---------------------------------------------------------------------------
 const IDENTITY_REGISTRY = getAddress('0x8004A169FB4a3325136EB29fA0ceB6D2e539a432');
 const REPUTATION_REGISTRY = getAddress('0x8004BAa17C55a88189AE136b182e5fdA19dE9b63');
@@ -64,18 +64,18 @@ const REPUTATION_ABI = [
 ];
 
 // ---------------------------------------------------------------------------
-// Helper — create Base Mainnet clients
+// Helper — create Ethereum Mainnet clients
 // ---------------------------------------------------------------------------
 
 /**
- * Creates viem public + wallet clients for Base Mainnet using env vars.
+ * Creates viem public + wallet clients for Ethereum Mainnet using env vars.
  * Requires BASE_PRIVATE_KEY. BASE_RPC_URL defaults to https://mainnet.base.org.
  */
 function createBaseClients() {
-  const privateKey = process.env.BASE_PRIVATE_KEY;
+  const privateKey = process.env.PRIVATE_KEY || process.env.BASE_PRIVATE_KEY;
   if (!privateKey) throw new Error('BASE_PRIVATE_KEY is not set');
 
-  const rpcUrl = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+  const rpcUrl = process.env.BASE_RPC_URL || 'https://eth.llamarpc.com';
   const account = privateKeyToAccount(privateKey);
 
   const publicClient = createPublicClient({
@@ -97,7 +97,7 @@ function createBaseClients() {
 // ---------------------------------------------------------------------------
 
 /**
- * Registers the agent on the ERC-8004 Identity Registry on Base Mainnet.
+ * Registers the agent on the ERC-8004 Identity Registry on Ethereum Mainnet.
  *
  * @param {string} agentURI - URL pointing to agent metadata (e.g. GitHub repo URL)
  * @returns {{ txHash: string, agentId: string, explorerUrl: string }}
@@ -151,7 +151,7 @@ export async function registerAgent(agentURI) {
     agentId = balance.toString();
   }
 
-  const explorerUrl = `https://basescan.org/tx/${txHash}`;
+  const explorerUrl = `https://etherscan.io/tx/${txHash}`;
 
   console.log(`[ERC-8004] Registered! agentId=${agentId} — ${explorerUrl}`);
 
@@ -233,7 +233,7 @@ export async function submitOnChainFeedback(agentId, score, tag, feedbackURI) {
     throw new Error(`Feedback tx failed: ${txHash}`);
   }
 
-  const explorerUrl = `https://basescan.org/tx/${txHash}`;
+  const explorerUrl = `https://etherscan.io/tx/${txHash}`;
 
   console.log(`[ERC-8004] Feedback confirmed — ${explorerUrl}`);
 
