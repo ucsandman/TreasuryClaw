@@ -1,6 +1,6 @@
 // src/onchain-receipts.js
 import { createPublicClient, createWalletClient, http, keccak256, toBytes } from 'viem';
-import { mainnet as sepolia } from 'viem/chains';
+import { mainnet as ethereumMainnet } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 
 /**
@@ -9,10 +9,14 @@ import { privateKeyToAccount } from 'viem/accounts';
  * Costs only gas (~21,000 + calldata gas). Verifiable on Etherscan.
  */
 export async function writeDecisionReceipt(decision) {
-  const account = privateKeyToAccount((process.env.PRIVATE_KEY || (process.env.PRIVATE_KEY || process.env.SEPOLIA_PRIVATE_KEY)));
-  const transport = http(((process.env.SEPOLIA_RPC_URL || 'https://eth.llamarpc.com') || 'https://eth.llamarpc.com'));
-  const publicClient = createPublicClient({ chain: sepolia, transport });
-  const walletClient = createWalletClient({ account, chain: sepolia, transport });
+  const privateKey = process.env.PRIVATE_KEY || process.env.ETHEREUM_MAINNET_PRIVATE_KEY || process.env.SEPOLIA_PRIVATE_KEY;
+  if (!privateKey) throw new Error('PRIVATE_KEY or ETHEREUM_MAINNET_PRIVATE_KEY is not set');
+
+  const rpcUrl = process.env.ETHEREUM_MAINNET_RPC_URL || process.env.RPC_URL || process.env.SEPOLIA_RPC_URL || 'https://eth.llamarpc.com';
+  const account = privateKeyToAccount(privateKey);
+  const transport = http(rpcUrl);
+  const publicClient = createPublicClient({ chain: ethereumMainnet, transport });
+  const walletClient = createWalletClient({ account, chain: ethereumMainnet, transport });
 
   const receipt = {
     agent_id: decision.agent_id,

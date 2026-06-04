@@ -4,7 +4,7 @@
  * Registers TreasuryClaw as a Trustless Agent on the ERC-8004 Identity Registry,
  * checks registration status, and submits on-chain reputation feedback.
  *
- * Contracts (Ethereum Mainnet, chain ID 8453):
+ * Contracts (Ethereum Mainnet):
  *   Identity Registry:   0x8004A169FB4a3325136EB29fA0ceB6D2e539a432
  *   Reputation Registry:  0x8004BAa17C55a88189AE136b182e5fdA19dE9b63
  */
@@ -16,7 +16,7 @@ import {
   getAddress,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet as base } from 'viem/chains';
+import { mainnet as ethereumMainnet } from 'viem/chains';
 
 // ---------------------------------------------------------------------------
 // Contract addresses (Ethereum Mainnet)
@@ -69,23 +69,23 @@ const REPUTATION_ABI = [
 
 /**
  * Creates viem public + wallet clients for Ethereum Mainnet using env vars.
- * Requires BASE_PRIVATE_KEY. BASE_RPC_URL defaults to https://mainnet.base.org.
+ * Requires PRIVATE_KEY or ETHEREUM_MAINNET_PRIVATE_KEY.
  */
-function createBaseClients() {
-  const privateKey = process.env.PRIVATE_KEY || process.env.BASE_PRIVATE_KEY;
-  if (!privateKey) throw new Error('BASE_PRIVATE_KEY is not set');
+function createEthereumMainnetClients() {
+  const privateKey = process.env.PRIVATE_KEY || process.env.ETHEREUM_MAINNET_PRIVATE_KEY || process.env.BASE_PRIVATE_KEY;
+  if (!privateKey) throw new Error('PRIVATE_KEY or ETHEREUM_MAINNET_PRIVATE_KEY is not set');
 
-  const rpcUrl = process.env.BASE_RPC_URL || 'https://eth.llamarpc.com';
+  const rpcUrl = process.env.ETHEREUM_MAINNET_RPC_URL || process.env.RPC_URL || process.env.BASE_RPC_URL || 'https://eth.llamarpc.com';
   const account = privateKeyToAccount(privateKey);
 
   const publicClient = createPublicClient({
-    chain: base,
+    chain: ethereumMainnet,
     transport: http(rpcUrl),
   });
 
   const walletClient = createWalletClient({
     account,
-    chain: base,
+    chain: ethereumMainnet,
     transport: http(rpcUrl),
   });
 
@@ -107,7 +107,7 @@ export async function registerAgent(agentURI) {
     throw new Error('agentURI must be a non-empty string');
   }
 
-  const { account, publicClient, walletClient } = createBaseClients();
+  const { account, publicClient, walletClient } = createEthereumMainnetClients();
 
   console.log(`[ERC-8004] Registering agent with URI: ${agentURI}`);
   console.log(`[ERC-8004] Wallet: ${account.address}`);
@@ -169,7 +169,7 @@ export async function registerAgent(agentURI) {
  * @returns {number}
  */
 export async function getAgentCount() {
-  const { account, publicClient } = createBaseClients();
+  const { account, publicClient } = createEthereumMainnetClients();
 
   const balance = await publicClient.readContract({
     address: IDENTITY_REGISTRY,
@@ -202,7 +202,7 @@ export async function submitOnChainFeedback(agentId, score, tag, feedbackURI) {
   if (!tag || typeof tag !== 'string') throw new Error('tag must be a non-empty string');
   if (!feedbackURI || typeof feedbackURI !== 'string') throw new Error('feedbackURI must be a non-empty string');
 
-  const { publicClient, walletClient } = createBaseClients();
+  const { publicClient, walletClient } = createEthereumMainnetClients();
 
   // Convert score (0-100) to int128 with 2 decimal places
   const value = BigInt(score) * 100n;

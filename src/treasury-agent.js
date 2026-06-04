@@ -33,6 +33,7 @@ const dc = new DashClaw({
 
 const DASHCLAW_ACTION_TYPE = 'api';
 const TREASURY_OPERATION = 'uniswap_swap';
+const TREASURY_CHAIN = 'ethereum-mainnet';
 
 // ---------------------------------------------------------------------------
 // Module-level state for handoffs
@@ -192,7 +193,7 @@ async function runTreasuryLoop() {
       content: JSON.stringify({
         ...proposal,
         operation: proposal.operation || TREASURY_OPERATION,
-        chain: 'sepolia',
+        chain: TREASURY_CHAIN,
         approvalContext: 'TreasuryClaw governed Uniswap rebalance',
       }),
     });
@@ -223,11 +224,11 @@ async function runTreasuryLoop() {
     // Step 4: Create verifiable action record
     action = await dc.createAction({
       actionType: proposal.actionType,
-      declaredGoal: `${proposal.goal}. Operation=${proposal.operation || TREASURY_OPERATION}. Chain=sepolia. Tokens=${proposal.tokenIn}->${proposal.tokenOut}. AmountUSD=${proposal.amountUSD}`,
+      declaredGoal: `${proposal.goal}. Operation=${proposal.operation || TREASURY_OPERATION}. Chain=${TREASURY_CHAIN}. Tokens=${proposal.tokenIn}->${proposal.tokenOut}. AmountUSD=${proposal.amountUSD}`,
       riskScore: proposal.riskScore,
       metadata: {
         operation: proposal.operation || TREASURY_OPERATION,
-        chain: 'sepolia',
+        chain: TREASURY_CHAIN,
         tokenIn: proposal.tokenIn,
         tokenOut: proposal.tokenOut,
         amountUSD: proposal.amountUSD,

@@ -1,39 +1,69 @@
 # TreasuryClaw Demo Runbook
 
-This runbook is designed to keep the submission credible, demonstrating two live spend rails: a funded AgentCash paid-API rail (Mode A) and a rewired Mainnet wallet path for On-Chain Receipts (Mode B).
+This runbook keeps the demo credible by separating paid API spend, on-chain
+receipt writes, and mocked swap execution.
 
-## Demo modes
+## Demo Modes
 
-### Mode A: Governed-spend-first demo (AgentCash)
+### Mode A: Governed Paid API Spend
 
-Use this to demonstrate the AgentCash rail, which represents micro-transactions and API spend governed by DashClaw policies.
+Use this to demonstrate AgentCash micro-transactions/API spend governed by
+DashClaw policies.
+
+```bash
+npm run demo:paid
+```
 
 What you show:
-1. The terminal showing `npm run demo:paid` hitting the DashClaw approval block.
-2. The DashClaw Dashboard / terminal approval.
+
+1. The terminal showing `npm run demo:paid` creating a governed spend action.
+2. The DashClaw approval gate.
 3. The successful AgentCash fetch of the paid endpoint.
 4. The [AgentCash receipt tx on Base](https://basescan.org/tx/0x071220125c800dc6c37ea3daee61272ec158d364ac63be6c9d62c492ee68aa2f).
 
-### Mode B: Live funded on-chain demo (Ethereum Mainnet)
+Do not run this path unless you intend to use the configured AgentCash wallet and
+paid endpoint.
 
-Use this to demonstrate the full On-Chain execution rail: ERC-8004 identity registration and DashClaw decision receipts written to Ethereum Mainnet.
+### Mode B: On-Chain Identity And Decision Receipt
+
+Use this to demonstrate the governance-to-receipt path: live price read,
+portfolio analysis, DashClaw guard/approval, ERC-8004 identity, and Ethereum
+Mainnet decision receipt.
+
+```bash
+node src/demo.js --cycles 1 --auto-approve
+```
 
 What you show:
-1. Terminal output of `node src/demo.js --cycles 1 --auto-approve`.
-2. The ERC-8004 Identity Registration success on Etherscan (Agent ID 29081):
+
+1. Terminal output for one demo cycle.
+2. ERC-8004 identity registration on Ethereum Mainnet:
    [Etherscan TX](https://etherscan.io/tx/0x2273c3a6250c842573f2c2b468afeb58a7af4b0705d3217920b4375286cf73ba)
-3. The Portfolio analysis determining a `buy_eth` direction based on real ETH price.
+3. Portfolio analysis choosing a `buy_eth` or `sell_eth` direction from a live
+   ETH price.
 4. The DashClaw governance approval gate.
-5. The final DashClaw Decision Receipt written to Etherscan:
+5. Final DashClaw decision receipt written to Ethereum Mainnet:
    [Etherscan TX](https://etherscan.io/tx/0x98ef86a0a8da3a45f61d6a178a8930a5d42bced8b14bfcfed1b47a6fdab84fe3)
-6. *Honest caveat*: Clarify that the actual Uniswap swap execution within the cycle was mocked due to Mainnet gas constraints, but the entire governance, identity, and receipt pipeline ran live on Mainnet.
+6. The explicit caveat: the Uniswap swap execution in this demo cycle is mocked.
 
-## Pre-upload checklist
+Do not present the mock swap reference as an on-chain swap transaction.
 
-- [x] `npm run frame:repo`
-- [x] `npm run verify:local`
-- [x] `npm run test:policies`
-- [x] README matches current reality
-- [x] `docs/submission-status.md` matches current wallet funding state
-- [x] Explorer links captured for real on-chain events
-- [x] No secrets or `.env` changes in git diff
+## Local Verification
+
+```bash
+npm run frame:repo
+npm run verify:local
+```
+
+`npm run test:policies` is useful when a DashClaw instance is available, but it
+is not part of local-only verification because it needs external credentials and
+may create approval records.
+
+## Pre-Recording Checklist
+
+- [ ] README states that TreasuryClaw is a DashClaw governed spend reference app.
+- [ ] `docs/submission-status.md` distinguishes live governance/receipts from the
+      mocked swap.
+- [ ] `.env` remains local and uncommitted.
+- [ ] Explorer links shown are for real identity/receipt transactions only.
+- [ ] No live mainnet swap or paid API command is run accidentally.

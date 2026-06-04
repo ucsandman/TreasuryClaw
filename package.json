@@ -1,7 +1,7 @@
 {
   "name": "treasury-claw",
   "version": "1.0.0",
-  "description": "Governed agent spend demo: DashClaw approvals, funded AgentCash API spend, and staged Base/Sepolia execution rails",
+  "description": "DashClaw governed agent spend reference app with AgentCash spend and Ethereum receipt demos",
   "type": "module",
   "main": "src/treasury-agent.js",
   "scripts": {

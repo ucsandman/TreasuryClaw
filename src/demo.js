@@ -2,8 +2,7 @@
 import { DashClaw } from 'dashclaw';
 import { getEthPrice, getMedianEthPrice } from './price-feed.js';
 import { analyzePortfolio } from './market-analyzer.js';
-import { getSepoliaBalance, executeSepoliaSwap, createSepoliaClients } from './sepolia-swap.js';
-import { registerAgent, getAgentCount, submitOnChainFeedback } from './erc8004.js';
+import { registerAgent, getAgentCount } from './erc8004.js';
 import { writeDecisionReceipt } from './onchain-receipts.js';
 import config from '../dashclaw-config.json' with { type: 'json' };
 
@@ -29,12 +28,14 @@ const dc = new DashClaw({
 
 const DASHCLAW_ACTION_TYPE = 'api';
 const TREASURY_OPERATION = 'uniswap_swap';
+const DEMO_CHAIN = 'ethereum-mainnet';
+const MOCK_SWAP_EXPLORER_URL = 'mock://treasuryclaw/swap-not-broadcast';
 
 // Stats tracking
 const stats = {
   executed: 0, blocked: 0, approvalRequired: 0, failed: 0,
   totalVolume: 0, losses_prevented: 0,
-  txHashes: [], receiptHashes: [], blockedProposals: [],
+  mockSwapReferences: [], receiptHashes: [], blockedProposals: [],
   startTime: null, endTime: null,
 };
 
@@ -53,14 +54,12 @@ async function runCycle(cycle) {
     try {
       const { thread } = await dc.createThread({
         name: `Demo cycle ${cycle}`,
-        summary: `Live treasury rebalance — cycle ${cycle} of ${CYCLES}`,
+        summary: `Governed treasury receipt demo — cycle ${cycle} of ${CYCLES}`,
       });
       threadId = thread?.thread_id;
     } catch {}
 
-    // 1. Read real Sepolia balance
-    const { account } = createSepoliaClients();
-    // Faked for mainnet demo (Sepolia USDC contract doesn't exist on mainnet)
+    // 1. Use a deterministic demo portfolio so no wallet balance read is required.
     const balance = { positions: [{ token: 'USDC', amount: '200.00' }, { token: 'WETH', amount: '0.01' }] };
     console.log(`[Monitor] USDC: ${balance.positions[0].amount} | WETH: ${balance.positions[1].amount}`);
     if (threadId) await dc.addThreadEntry(threadId, `Balance: USDC ${balance.positions[0].amount}, WETH ${balance.positions[1].amount}`, 'observation').catch(() => {});
@@ -104,7 +103,8 @@ async function runCycle(cycle) {
       content: JSON.stringify({
         ...analysis,
         operation: TREASURY_OPERATION,
-        chain: 'sepolia',
+        chain: DEMO_CHAIN,
+        executionMode: 'mock_swap_with_live_governance_and_receipt',
         approvalContext: 'TreasuryClaw governed Uniswap rebalance',
       }),
     });
@@ -126,9 +126,16 @@ async function runCycle(cycle) {
     // 7. Create action
     action = await dc.createAction({
       actionType: DASHCLAW_ACTION_TYPE,
-      declaredGoal: `${analysis.direction}: $${analysis.amountUSD} at ETH=$${priceData.price.toFixed(2)}. Operation=${TREASURY_OPERATION}. Chain=sepolia.`,
+      declaredGoal: `${analysis.direction}: $${analysis.amountUSD} at ETH=$${priceData.price.toFixed(2)}. Operation=${TREASURY_OPERATION}. Chain=${DEMO_CHAIN}. ExecutionMode=mock_swap_with_live_governance_and_receipt.`,
       riskScore: analysis.riskScore,
-      metadata: { ...analysis, operation: TREASURY_OPERATION, chain: 'sepolia', ethPrice: priceData.price, source: priceData.source },
+      metadata: {
+        ...analysis,
+        operation: TREASURY_OPERATION,
+        chain: DEMO_CHAIN,
+        executionMode: 'mock_swap_with_live_governance_and_receipt',
+        ethPrice: priceData.price,
+        source: priceData.source,
+      },
     });
 
     // 8. Handle approval
@@ -146,25 +153,24 @@ async function runCycle(cycle) {
       }
     }
 
-    // 9. Execute REAL Uniswap swap on Mainnet
-    console.log('[Swap] Executing on Mainnet (mocked)...');
-    // Swap faked for Mainnet demo (no USDC, saving gas)
+    // 9. Mock swap execution so the live governance and receipt path can finish safely.
+    console.log('[Swap] Mocking Uniswap execution; no swap transaction will be broadcast.');
     const swapResult = {
-      status: 'success',
-      txHash: '0xfake' + Date.now().toString(16),
-      explorerUrl: 'https://etherscan.io/tx/faked-for-demo'
+      status: 'mocked',
+      referenceId: `mock-swap-${Date.now().toString(16)}`,
+      explorerUrl: MOCK_SWAP_EXPLORER_URL
     };
-    console.log(`[Swap] TX: ${swapResult.explorerUrl}`);
-    stats.txHashes.push(swapResult.txHash);
+    console.log(`[Swap] Mock reference: ${swapResult.referenceId}`);
+    stats.mockSwapReferences.push(swapResult.referenceId);
     stats.executed++;
     stats.totalVolume += analysis.amountUSD;
 
-    if (threadId) await dc.addThreadEntry(threadId, `Executed: ${swapResult.explorerUrl}`, 'observation').catch(() => {});
+    if (threadId) await dc.addThreadEntry(threadId, `Mock swap result: ${swapResult.referenceId}`, 'observation').catch(() => {});
 
     // 10. Record outcome
     await dc.updateOutcome(action.action_id, {
       status: swapResult.status,
-      outputSummary: `${analysis.direction} $${analysis.amountUSD} on Mainnet. TX: ${swapResult.txHash}`,
+      outputSummary: `${analysis.direction} $${analysis.amountUSD} on ${DEMO_CHAIN}. Swap execution mocked; no trade broadcast. Mock ref: ${swapResult.referenceId}`,
       costEstimate: 0,
     });
 
@@ -176,7 +182,7 @@ async function runCycle(cycle) {
         action_type: 'uniswap_swap',
         guard_decision: guardResult.decision,
         risk_score: analysis.riskScore,
-        outcome: swapResult.status,
+        outcome: 'governance_approved_swap_mocked',
         replay_url: `${process.env.DASHCLAW_BASE_URL}/replay/${action.action_id}`,
       });
       console.log(`[Receipt] On-chain: ${receiptResult.explorerUrl}`);
@@ -186,11 +192,11 @@ async function runCycle(cycle) {
     }
 
     // 12. Submit feedback
-    const rating = swapResult.status === 'completed' ? (analysis.riskScore < 30 ? 5 : analysis.riskScore < 50 ? 4 : 3) : 1;
+    const rating = analysis.riskScore < 30 ? 5 : analysis.riskScore < 50 ? 4 : 3;
     await dc.submitFeedback({
       action_id: action.action_id,
       rating,
-      comment: `Cycle ${cycle}: ${analysis.direction} $${analysis.amountUSD}. TX: ${swapResult.txHash}`,
+      comment: `Cycle ${cycle}: ${analysis.direction} $${analysis.amountUSD}. Swap mocked; governance and receipt path exercised. Ref: ${swapResult.referenceId}`,
       category: 'execution_quality',
     }).catch(() => {});
 
@@ -199,11 +205,11 @@ async function runCycle(cycle) {
       to: 'dashboard',
       type: 'status',
       subject: `Cycle ${cycle}: ${analysis.direction} $${analysis.amountUSD}`,
-      body: `ETH=$${priceData.price.toFixed(2)} | Risk: ${analysis.riskScore} | TX: ${swapResult.explorerUrl}`,
+      body: `ETH=$${priceData.price.toFixed(2)} | Risk: ${analysis.riskScore} | Mock swap ref: ${swapResult.referenceId}`,
     }).catch(() => {});
 
     // 14. Close thread
-    if (threadId) await dc.closeThread(threadId, `Cycle ${cycle} complete: ${swapResult.explorerUrl}`).catch(() => {});
+    if (threadId) await dc.closeThread(threadId, `Cycle ${cycle} complete with mocked swap ref ${swapResult.referenceId}`).catch(() => {});
 
   } catch (err) {
     console.error(`[ERROR] Cycle ${cycle}: ${err.message}`);
@@ -217,25 +223,25 @@ async function main() {
   stats.startTime = Date.now();
 
   console.log('\n' + '='.repeat(60));
-  console.log('  TREASURYCLAW LIVE DEMO');
-  console.log('  Real prices. Real swaps. Real governance. Real blockchain.');
+  console.log('  TREASURYCLAW REFERENCE DEMO');
+  console.log('  Live prices. Live governance. Live receipts. Mocked swap execution.');
   console.log('='.repeat(60));
   console.log(`Cycles: ${CYCLES} | Delay: ${DELAY}ms | Auto-approve: ${AUTO_APPROVE}`);
   console.log(`DashClaw: ${process.env.DASHCLAW_BASE_URL}`);
   console.log('');
 
-  // ERC-8004: Register agent identity on Base (if not already registered)
+  // ERC-8004: Register agent identity on Ethereum Mainnet (if not already registered)
   try {
     const count = await getAgentCount();
     if (count === 0) {
-      console.log('[ERC-8004] Registering agent identity on Base Mainnet...');
+      console.log('[ERC-8004] Registering agent identity on Ethereum Mainnet...');
       const reg = await registerAgent(
         `https://github.com/ucsandman/TreasuryClaw`
       );
       console.log(`[ERC-8004] Registered! Agent ID: ${reg.agentId}`);
-      console.log(`[ERC-8004] BaseScan: ${reg.explorerUrl}`);
+      console.log(`[ERC-8004] Etherscan: ${reg.explorerUrl}`);
     } else {
-      console.log(`[ERC-8004] Agent already registered on Base (${count} identity/ies)`);
+      console.log(`[ERC-8004] Agent already registered on Ethereum Mainnet (${count} identity/ies)`);
     }
   } catch (err) {
     console.log(`[ERC-8004] Registration skipped: ${err.message}`);
@@ -243,10 +249,10 @@ async function main() {
 
   // Report connections
   await dc.reportConnections([
-    { name: 'Uniswap V3 (Sepolia)', type: 'dex', status: 'connected' },
+    { name: 'Uniswap V3 (mocked demo execution)', type: 'dex', status: 'mocked' },
     { name: 'Multi-source Price Feed', type: 'oracle', status: 'connected' },
-    { name: 'ERC-8004 Identity (Base)', type: 'identity', status: 'connected' },
-    { name: 'Sepolia Testnet', type: 'blockchain', status: 'connected' },
+    { name: 'ERC-8004 Identity (Ethereum Mainnet)', type: 'identity', status: 'connected' },
+    { name: 'Ethereum Mainnet decision receipts', type: 'blockchain', status: 'connected' },
   ]);
 
   // Create session handoff
@@ -285,20 +291,20 @@ async function main() {
   console.log('='.repeat(60));
   console.log(`  Cycles: ${CYCLES} | Duration: ${duration}s`);
   console.log(`  Executed: ${stats.executed} | Blocked: ${stats.blocked} | Approval: ${stats.approvalRequired} | Failed: ${stats.failed}`);
-  console.log(`  Total Volume: $${stats.totalVolume.toFixed(2)} (Sepolia testnet)`);
+  console.log(`  Proposed Volume: $${stats.totalVolume.toFixed(2)} (${DEMO_CHAIN}, swap mocked)`);
   if (stats.losses_prevented > 0) {
     console.log(`  Losses Prevented: $${stats.losses_prevented.toFixed(2)}`);
   }
   console.log(`  On-chain Receipts: ${stats.receiptHashes.length}`);
-  console.log(`  Swap Transactions: ${stats.txHashes.length}`);
+  console.log(`  Mock Swap References: ${stats.mockSwapReferences.length}`);
   console.log('');
   console.log(`  Dashboard: ${process.env.DASHCLAW_BASE_URL}/agents/treasury-claw-fleet`);
   console.log(`  Replay any decision: ${process.env.DASHCLAW_BASE_URL}/replay/<action_id>`);
-  if (stats.txHashes.length > 0) {
-    console.log(`  Latest Sepolia TX: https://sepolia.etherscan.io/tx/${stats.txHashes[stats.txHashes.length - 1]}`);
+  if (stats.mockSwapReferences.length > 0) {
+    console.log(`  Latest Mock Swap Ref: ${stats.mockSwapReferences[stats.mockSwapReferences.length - 1]}`);
   }
   if (stats.receiptHashes.length > 0) {
-    console.log(`  Latest Receipt TX: https://sepolia.etherscan.io/tx/${stats.receiptHashes[stats.receiptHashes.length - 1]}`);
+    console.log(`  Latest Receipt TX: https://etherscan.io/tx/${stats.receiptHashes[stats.receiptHashes.length - 1]}`);
   }
   console.log('='.repeat(60));
 
@@ -307,15 +313,15 @@ async function main() {
     to: 'dashboard',
     type: 'report',
     subject: `Demo complete: ${CYCLES} cycles in ${duration}s`,
-    body: `Executed: ${stats.executed} | Blocked: ${stats.blocked} | Volume: $${stats.totalVolume.toFixed(2)} | Receipts: ${stats.receiptHashes.length}`,
+    body: `Mocked swaps: ${stats.executed} | Blocked: ${stats.blocked} | Proposed volume: $${stats.totalVolume.toFixed(2)} | Receipts: ${stats.receiptHashes.length}`,
   }).catch(() => {});
 
   // Final handoff
   await dc.createHandoff({
     sessionDate: new Date().toISOString().slice(0, 10),
-    summary: `Demo complete: ${stats.executed} swaps, ${stats.blocked} blocked, ${stats.receiptHashes.length} on-chain receipts`,
+    summary: `Demo complete: ${stats.executed} mocked swaps, ${stats.blocked} blocked, ${stats.receiptHashes.length} on-chain receipts`,
     openTasks: [],
-    decisions: [`Ran ${CYCLES} cycles on Mainnet`, `${stats.receiptHashes.length} decision receipts on-chain`],
+    decisions: [`Ran ${CYCLES} cycles on ${DEMO_CHAIN} with mocked swap execution`, `${stats.receiptHashes.length} decision receipts on-chain`],
   });
 
   await dc.heartbeat('idle');
